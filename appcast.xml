@@ -17,7 +17,7 @@
             <sparkle:version>1001</sparkle:version>
             <sparkle:shortVersionString>1.0.0-beta.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/livejiaquan/quotapus/releases/download/v1.0.0-beta.1/Quotapus-1.0.0-beta.1.dmg" length="10261738" type="application/octet-stream" sparkle:edSignature="7s+XnAzNZ+24K8F5/8BL0A/bAeRT5jqeZQo1ELp2m/WoFcvbSDVG3TK6tTo5tzIfwJfxYnZUOe+RWnHkBnU2Dg=="/>
+            <enclosure url="https://github.com/livejiaquan/quotapus/releases/download/v1.0.0-beta.1/Quotapus-1.0.0-beta.1.dmg" length="10261704" type="application/octet-stream" sparkle:edSignature="i6yXqlt+7wzubyldO+60xsdptzJs9YkyH48z7yam9VbEId/Ad49YBZk7tCu27qmGx/l+TySfROHDfeuleVz2CA=="/>
         </item>
     </channel>
 </rss>

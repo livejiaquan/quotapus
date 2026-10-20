@@ -1,0 +1,121 @@
+import SwiftUI
+
+/// The dashboard-only scrolling content. Screen switching, panel sizing, fixed bars, keyboard handling,
+/// and close/reset behavior stay with `DashboardView`.
+struct DashboardContentView: View {
+    let container: AppContainer
+    let layout: LayoutStore
+    let updater: UpdaterController
+    let reorderSpaceName: String
+    let horizontalPadding: CGFloat
+    let bottomGap: CGFloat
+
+    @Binding var reorderLift: ReorderLift?
+    @Binding var scrollPosition: ScrollPosition
+
+    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
+    @AppStorage(LiveActivitySettings.cardKey) private var showActivityCard = true
+    @AppStorage(LiveActivitySettings.tokensCardKey) private var showTokensCard = true
+    @AppStorage(LiveActivitySettings.modelsCardKey) private var showModelsCard = true
+    @AppStorage(LiveActivitySettings.spendCardKey) private var showSpendCard = true
+
+    var body: some View {
+        PopoverScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                // A pending update found by a scheduled Sparkle check tops everything — it's the
+                // reminder the buried Sparkle window can't deliver for a dockless app.
+                if let updateVersion = updater.availableUpdateVersion {
+                    UpdateBannerCard(version: updateVersion)
+                        .padding(.bottom, density.sectionSpacing)
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                // The one-time first-run hint sits above the provider sections (and above the
+                // empty-state line, which a fresh install can hit while nothing has data yet).
+                if container.onboarding.isCustomizeHintPending {
+                    CustomizeHintCard()
+                        .padding(.bottom, density.sectionSpacing)
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                }
+                widgetContent
+            }
+            .animation(Motion.spring, value: container.onboarding.isCustomizeHintPending)
+            .animation(Motion.spring, value: updater.availableUpdateVersion)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, density.contentTopPadding)
+            .padding(.bottom, bottomGap)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollPosition($scrollPosition)
+    }
+
+    @ViewBuilder
+    private var widgetContent: some View {
+        if container.dataStore.historyScopeOptions.count > 2 {
+            HStack(spacing: 8) {
+                Text("Usage From")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                Menu {
+                    ForEach(container.dataStore.historyScopeOptions.map { $0.id }, id: \.self) { id in
+                        Button {
+                            container.dataStore.historyScopeID = id
+                        } label: {
+                            if container.dataStore.historyScopeID == id {
+                                Label(scopeName(id), systemImage: "checkmark")
+                            } else {
+                                Text(scopeName(id))
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(scopeName(container.dataStore.historyScopeID))
+                            .fontWeight(.medium)
+                        MenuChevron()
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 24)
+                    .background(Color.primary.opacity(0.09), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+            }
+            .font(.system(size: density.supportingPointSize))
+            .padding(.horizontal, 4)
+            .padding(.bottom, density.sectionSpacing)
+        }
+        if showActivityCard {
+            // A leaf that reads the live store itself, so live updates don't re-render this view.
+            ActivityCardSlot(container: container)
+            .padding(.bottom, density.sectionSpacing)
+        }
+        // Each hides itself (spacing included) when no enabled provider keeps the history it needs.
+        if showTokensCard {
+            TokensCardSlot(container: container, bottomSpacing: density.sectionSpacing)
+        }
+        if showSpendCard {
+            SpendCardSlot(container: container, bottomSpacing: density.sectionSpacing)
+        }
+        if showModelsCard {
+            ModelsCardSlot(container: container, bottomSpacing: density.sectionSpacing)
+        }
+        if layout.displayGroups.isEmpty {
+            EmptyDashboardView {
+                withAnimation(Motion.modeSwitch) { layout.screen = .customize }
+            }
+        } else {
+            WidgetGroupedListView(
+                reorderSpaceName: reorderSpaceName,
+                reorderLift: $reorderLift
+            )
+        }
+    }
+
+    private func scopeName(_ id: String) -> String {
+        container.dataStore.historyScopeOptions.first(where: { $0.id == id })?.name ?? "All Devices"
+    }
+}

@@ -1,0 +1,131 @@
+import SwiftUI
+
+/// The Usage Trend row: a compact, right-aligned day-by-day token sparkline that reads at a glance and
+/// keeps the card's row rhythm. Hovering reveals a larger, readable chart (`UsageTrendDetail`) with the
+/// peak, the date range, the source note, and per-bar highlight. The bars render already-priced per-day
+/// numbers (`MetricChartPoint`); this view never computes usage, only draws it.
+struct UsageSparkline: View {
+    let data: WidgetData
+    /// Today's bar color (the provider's); other days use a neutral track color.
+    let accent: Color?
+    /// The row's per-day points (the producer already validated and capped them); held directly so the
+    /// bars, the popover, and the accessibility label all read one list.
+    private let points: [MetricChartPoint]
+
+    @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
+    @Environment(\.reduceAnimations) private var reduceAnimations
+    @State private var hover = HoverPopoverState()
+
+    /// Per-bar floor (matches the original app) so a dense window never squashes bars below visibility.
+    private static let minBarWidth: CGFloat = 2
+
+    /// Quotapus's "Last 14 Days" shows the most recent two weeks of the producer's window.
+    static let dayCount = 14
+
+    init(data: WidgetData, accent: Color? = nil) {
+        self.data = data
+        self.accent = accent
+        self.points = Array(data.chartPoints.suffix(Self.dayCount))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: density.rowInnerSpacing + 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(data.title)
+                    .font(.system(size: density.labelPointSize, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                // The bars are tokens, so the average beside them is tokens too.
+                if let averageTokens {
+                    Text("avg \(LiveFormat.compact(averageTokens)) tokens/day")
+                        .font(.system(size: density.supportingPointSize))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            // Anchor the popover to the bar strip (not the whole row), so its arrow points straight up
+            // at the chart rather than at the row's center, off to the left of the bars.
+            bars
+                // Match the spend/reset value affordance: light the sparkline as soon as the pointer
+                // arrives, then hold the highlight while its detail popover is open so the chart still
+                // reads as the popover's source. `hover.dismiss()` clears both flags on panel close.
+                .background {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(.quaternary)
+                        .padding(.horizontal, -7)
+                        .padding(.vertical, -4)
+                        .opacity(showChartHighlight ? 1 : 0)
+                }
+                .animation(.easeOut(duration: 0.12), value: showChartHighlight)
+                // Only the bar strip is hoverable — hovering the title must not reveal the detail.
+                .contentShape(Rectangle())
+                .onContinuousHover { phase in
+                    if case .active = phase { hover.inlineHover(true) } else { hover.inlineHover(false) }
+                }
+                // Dismissing from outside (click-away) removes the detail view without an `.ended`
+                // hover event, so a plain assignment would strand `overDetail == true` and block
+                // future hides — reset the whole hover state instead.
+                .motionAwareHoverPopover(
+                    isPresented: Binding(get: { hover.isPresented }, set: { if !$0 { hover.dismiss() } }),
+                    reduceAnimations: reduceAnimations
+                ) {
+                    UsageTrendDetail(title: data.title, points: points, note: data.chartNote) { inside in
+                        hover.detailHover(inside)
+                    }
+                }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .onDisappear { hover.dismiss() }
+    }
+
+    /// Immediate pointer affordance plus a persistent source highlight while the popover is visible.
+    private var showChartHighlight: Bool {
+        hover.overInline || hover.isPresented
+    }
+
+    /// Mean of the bars (tokens per day) over the shown days; nil without any usage.
+    private var averageTokens: Double? {
+        guard !points.isEmpty, points.contains(where: { $0.value > 0 }) else { return nil }
+        return points.map(\.value).reduce(0, +) / Double(points.count)
+    }
+
+    private var bars: some View {
+        let maxValue = max(1, points.map(\.value).max() ?? 1)
+        let todayLabel = points.last?.label
+        // The bars use the same blue as a healthy meter (`Theme.meterFill(.normal)`, system blue softened
+        // for glass), so the trend reads as part of the card's visual language and tracks light/dark and
+        // the accessibility contrast settings like every other bar.
+        return HStack(alignment: .bottom, spacing: 1) {
+            // Keyed by the day label (unique — the producer collapses duplicate days) so a refresh that
+            // adds or drops a day re-lays-out cleanly instead of remapping bars by position.
+            ForEach(points, id: \.label) { point in
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(point.label == todayLabel
+                          ? (accent.map { AnyShapeStyle($0) } ?? Theme.meterFill(.normal)) : AnyShapeStyle(.quaternary))
+                    .frame(minWidth: Self.minBarWidth, maxWidth: .infinity)
+                    .frame(height: barHeight(point.value, max: maxValue))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.barsHeight(density), alignment: .bottom)
+    }
+
+    /// A bar's height: proportional to the window's peak, with a visible floor so a small non-zero day
+    /// never collapses to nothing, and a thin stub for a true zero so gaps still read as days.
+    private static func barsHeight(_ density: DensitySetting) -> CGFloat { density == .compact ? 20 : 26 }
+
+    private func barHeight(_ value: Double, max maxValue: Double) -> CGFloat {
+        let height = Self.barsHeight(density)
+        guard value > 0 else { return 2 }
+        let ratio = min(1, value / maxValue)
+        return max(height * 0.18, height * ratio)
+    }
+
+    private var accessibilityLabel: String {
+        guard let peak = points.max(by: { $0.value < $1.value }),
+              let first = points.first, let last = points.last else { return data.title }
+        return "\(data.title): \(points.count) days, \(first.label) to \(last.label), peak \(peak.readout)."
+    }
+}

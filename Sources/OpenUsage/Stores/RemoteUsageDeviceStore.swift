@@ -1,0 +1,189 @@
+import Foundation
+import Observation
+
+/// User-managed SSH sources. Configuration and last-good daily summaries are small JSON values in
+/// this Mac's preferences; raw remote JSONL and exported per-event metadata are never persisted here.
+@MainActor
+@Observable
+final class RemoteUsageDeviceStore {
+    private static let devicesKey = "openusage.remote.devices.v1"
+    private static let summariesKey = "openusage.remote.summaries.v1"
+
+    private let defaults: UserDefaults
+    private let dataStore: WidgetDataStore
+    private let client: SSHRemoteUsageClient
+    private var documents: [String: UsageHistoryDocument]
+    private var refreshingIDs: Set<String> = []
+    private var backgroundRefresh: Task<Void, Never>?
+
+    private(set) var devices: [RemoteUsageDevice]
+    private(set) var errors: [String: String] = [:]
+    private(set) var lastUpdated: [String: Date] = [:]
+    /// Each device's activity as of its last import (memory only; see `RemoteLiveSample`).
+    private(set) var liveSamples: [String: RemoteLiveSample] = [:]
+    var isRefreshing: Bool { !refreshingIDs.isEmpty }
+
+    func isRefreshing(_ id: String) -> Bool { refreshingIDs.contains(id) }
+
+    func historyIsEmpty(_ id: String) -> Bool {
+        documents[id]?.providers.values.allSatisfy { $0.series.daily.isEmpty } ?? true
+    }
+
+    /// Imported providers the dashboard can't count for this device (see
+    /// `UsageHistoryAggregator.unattributedFamilies`). Shown on the device row so the gap isn't silent.
+    func hiddenProviders(_ id: String) -> [String] {
+        guard let document = documents[id] else { return [] }
+        return dataStore.unattributedProviderNames(in: document)
+    }
+
+    init(dataStore: WidgetDataStore, defaults: UserDefaults = .standard,
+         client: SSHRemoteUsageClient = SSHRemoteUsageClient()) {
+        self.dataStore = dataStore
+        self.defaults = defaults
+        self.client = client
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let loadedDevices = (defaults.data(forKey: Self.devicesKey)
+            .flatMap { try? decoder.decode([RemoteUsageDevice].self, from: $0) }) ?? []
+        self.devices = loadedDevices
+        let saved = (defaults.data(forKey: Self.summariesKey)
+            .flatMap { try? decoder.decode([UsageHistoryDocument].self, from: $0) }) ?? []
+        let valid = UsageHistoryDocument.newestByDevice(saved).compactMap { document -> (String, UsageHistoryDocument)? in
+            guard (try? document.validate()) != nil else { return nil }
+            guard loadedDevices.contains(where: { $0.id == document.deviceID }) else { return nil }
+            return (document.deviceID, document)
+        }
+        self.documents = Dictionary(uniqueKeysWithValues: valid)
+        self.lastUpdated = documents.mapValues(\.updatedAt)
+        dataStore.setRemoteHistoryDocuments(Array(documents.values))
+    }
+
+    func add(_ device: RemoteUsageDevice) async throws {
+        try validateUnique(device)
+        devices.append(device)
+        persistDevices()
+        await refresh(device.id)
+    }
+
+    func update(_ device: RemoteUsageDevice) async throws {
+        guard let index = devices.firstIndex(where: { $0.id == device.id }) else { return }
+        try validateUnique(device)
+        let changedConnection = devices[index].connectionKey != device.connectionKey
+        devices[index] = device
+        if changedConnection {
+            liveSamples.removeValue(forKey: device.id)
+            documents.removeValue(forKey: device.id)
+            lastUpdated.removeValue(forKey: device.id)
+            persistDocuments()
+            dataStore.setRemoteHistoryDocuments(Array(documents.values))
+        }
+        errors[device.id] = nil
+        persistDevices()
+        await refresh(device.id)
+    }
+
+    func test(_ device: RemoteUsageDevice) async throws -> RemoteProbeResult {
+        try validateUnique(device)
+        return try await client.probe(device)
+    }
+
+    /// Lists a Windows host's WSL distributions for the editor's picker; nothing is saved.
+    func wslDistributions(on device: RemoteUsageDevice) async throws -> [WSLDistribution] {
+        do {
+            return try await client.wslDistributions(device)
+        } catch {
+            AppLog.warn(.config, "WSL distributions on \(device.host) couldn't be listed: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
+    private func validateUnique(_ device: RemoteUsageDevice) throws {
+        guard device.isValid else { throw SSHRemoteUsageError.invalidConfiguration }
+        guard !devices.contains(where: { $0.id != device.id && $0.connectionKey == device.connectionKey }) else {
+            throw SSHRemoteUsageError.commandFailed("This SSH account and system are already added.")
+        }
+    }
+
+    func remove(_ id: String) {
+        devices.removeAll { $0.id == id }
+        liveSamples.removeValue(forKey: id)
+        documents.removeValue(forKey: id)
+        errors.removeValue(forKey: id)
+        lastUpdated.removeValue(forKey: id)
+        persistDevices()
+        persistDocuments()
+        dataStore.setRemoteHistoryDocuments(Array(documents.values))
+    }
+
+    func removeAll() {
+        devices = []
+        liveSamples = [:]
+        documents = [:]
+        errors = [:]
+        lastUpdated = [:]
+        persistDevices()
+        persistDocuments()
+        dataStore.setRemoteHistoryDocuments([])
+    }
+
+    /// Devices refresh in parallel; each SSH run has its own deadline, so one offline machine can't
+    /// hold back the others.
+    func refreshAll() async {
+        let ids = devices.filter(\.enabled).map(\.id)
+        await withTaskGroup(of: Void.self) { group in
+            for id in ids {
+                group.addTask { await self.refresh(id) }
+            }
+        }
+    }
+
+    /// The periodic loop's entry point. Remote devices are slower than local logs, so they refresh
+    /// beside the loop instead of delaying local providers and notifications. A pass still running
+    /// from the previous tick is left to finish rather than stacked.
+    func startRefreshAll() {
+        guard backgroundRefresh == nil else { return }
+        backgroundRefresh = Task {
+            await refreshAll()
+            backgroundRefresh = nil
+        }
+    }
+
+    func refresh(_ id: String) async {
+        guard let device = devices.first(where: { $0.id == id && $0.enabled }),
+              refreshingIDs.insert(id).inserted
+        else { return }
+        defer { refreshingIDs.remove(id) }
+        do {
+            let result = try await client.fetch(device)
+            let document = result.document
+            try document.validate()
+            // A device removed while SSH was in flight must not reappear in the combined view.
+            guard devices.contains(where: { $0.id == id && $0.enabled && $0.connectionKey == device.connectionKey }) else { return }
+            documents[id] = document
+            liveSamples[id] = result.liveSample
+            lastUpdated[id] = document.updatedAt
+            errors[id] = nil
+            persistDocuments()
+            dataStore.setRemoteHistoryDocuments(Array(documents.values))
+        } catch {
+            guard devices.contains(where: { $0.id == id && $0.connectionKey == device.connectionKey }) else { return }
+            errors[id] = error.localizedDescription
+            liveSamples[id]?.lastFailureAt = Date()
+            AppLog.warn(.config, "remote usage \(device.name): \(error.localizedDescription)")
+        }
+    }
+
+    private func persistDevices() {
+        if let data = try? JSONEncoder().encode(devices) {
+            defaults.set(data, forKey: Self.devicesKey)
+        }
+    }
+
+    private func persistDocuments() {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        if let data = try? encoder.encode(Array(documents.values)) {
+            defaults.set(data, forKey: Self.summariesKey)
+        }
+    }
+}

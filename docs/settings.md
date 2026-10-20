@@ -1,0 +1,102 @@
+# Settings
+
+Settings lives inside the popover — there is no separate window. Open it from the footer's **Options** menu, with ⌘, while the popover is showing, or by right-clicking the menu bar icon and choosing Settings. The dashboard slides over to the Settings screen, which carries a back button in its top-left corner. Go back with that button, the ⌘, shortcut, or Esc (Esc always backs out to the dashboard first — pressing it again closes the popover).
+
+## General
+
+| Setting | Options | What it does |
+|---|---|---|
+| Launch at Login | on/off | Registers the app as a login item (the system's login-item registry is the source of truth). |
+| Global Shortcut | record a shortcut | Global shortcut that toggles the popover from anywhere. Click the field and press a combo; the ⓧ clears it and disables the shortcut. |
+
+## Remote Devices
+
+Add an SSH-accessible Linux, Windows, Windows + WSL, or Mac source for Claude Code and Codex history. Each row shows a status dot, the connection, and one status line with how long ago it last updated, plus a refresh button. Failed imports keep their saved history visible; **Details** shows the error. Providers that can't be matched to one of this Mac's accounts are named on the row. Edit and Remove are in the device's actions menu. The editor asks for the system first, includes a **Before You Start** checklist, reports invalid fields inline, and keeps the optional Test Connection separate from history import. The dashboard's **Usage From** menu switches between all devices, this Mac, and each imported device. See [Remote Devices](remote-devices.md) for setup, data handling, and duplicate-source guidance.
+
+## Live Activity
+
+Switches for the live parts of the dashboard. All six start on. The Activity card offers its **Providers / Devices** switch automatically when remote devices exist.
+
+- **Activity Card** — the card at the top of the dashboard with live speed and the per-provider or per-device breakdown.
+- **Tokens Card** — tokens across providers for Today, Yesterday, or 30 Days, with the last 14 days shown as bars.
+- **Spend Card** — spend for Today, Yesterday, or 30 Days across providers that price their usage, with the last 14 days shown as bars.
+- **Models Card** — the most-used models across providers for Today, Yesterday, or 30 Days.
+- **Speed on Provider Headers** — the small `● 982K/min` next to Claude and Codex.
+- **Animated Meters** — a slow, soft highlight that drifts across a meter while that provider is working. It never runs while the panel is closed or with Reduce Animations on.
+
+With every switch off, the dashboard looks the way it did before the live features. **Reset All Settings** turns these back to their defaults.
+
+## Appearance
+
+| Setting | Options | What it does |
+|---|---|---|
+| Icon Style | Text / Bars | How starred metrics render in the menu bar. See [Menu bar](menu-bar.md). |
+| Theme | System / Light / Dark | App-wide appearance override for the popover. |
+| Density | Default / Compact | Default breathes; Compact is a real information-dense mode — text steps down one size, rows and provider sections pull together, and Customize / Settings rows tighten with them. In both, consecutive one-line metrics (Today / Yesterday / …) pull together; Compact pulls harder. |
+| Reduce Animations | Off / On | Off by default. On removes transitions, motion effects, and continuous decorative animation throughout the popover. The app also honors the macOS Reduce Motion accessibility setting. |
+| Increase Transparency | Off / On | On (default) makes the popover translucent so your desktop shows through, with Liquid Glass cards on macOS 26 (frosted glass on macOS 15); Off keeps it a solid panel, while keeping the numbers and Options control legible with adaptive surfaces. It pauses automatically when you have the macOS **Reduce Transparency** or **Increase Contrast** accessibility setting turned on (a note explains why), so it never works against those preferences. |
+
+Times follow the macOS 12/24-hour setting.
+
+## Usage Display
+
+| Setting | Options | What it does |
+|---|---|---|
+| Show Usage As | Used / Left | Whether bounded metrics read "48% used" or "52% left" — same toggle as clicking a headline. |
+| Reset Times | Countdown / Exact time | "Resets in 3h 25m" vs "Resets today at 6:38 PM" — same toggle as clicking a reset label. |
+| Always Show Pacing | Off / On | On (default) surfaces pacing on every metric with a reset window; Off shows it only when a metric is close to or over its limit. On surfaces it on every metric with a reset window: on-track rows gain their projection ("~33% left at reset") and an even-pace tick marking where steady use would put you right now. Metrics without a reset window have no pace to show, and a metric with nothing used yet stays plain until something has been spent. |
+
+## Notifications
+
+Quotapus can alert you with a macOS notification when a metric runs low or its pace gets worse, so you don't have to keep the popover open to catch a quota creeping toward its limit. Alerts work while the app runs in the menu bar, even with the popover closed.
+
+| Setting | Options | What it does |
+|---|---|---|
+| Almost Out | On / Off | Alerts when a metric crosses under 10% remaining, including balances without a reset window. |
+| Cutting It Close | On / Off | Alerts when a metric is projected to finish the period with little left — close to its limit. |
+| Will Run Out | On / Off | Alerts when a metric is projected to run out before it resets. |
+
+Alerts fire on a new crossing or pace worsening, then stay deduplicated while that condition is unchanged, so you do not get repeats on every refresh. A quota already in a bad state when Quotapus launches establishes the baseline without alerting. If it recovers and later worsens again, the alert re-arms; a new reset period also clears the reset-based history. **Almost Out** is based only on the remaining share, so it also works for bounded balances without a reset window. **Cutting It Close** and **Will Run Out** require reset-window pace context. Metrics whose data cannot be read never alert. Turn all three triggers off to silence everything. When several alerts fire at once, they stack into a single grouped banner.
+
+All three alerts default off. The first time you turn one on, Quotapus asks for notification permission; if you decline (or turn notifications off for Quotapus in System Settings later), a warning mark appears on the Notifications header and an "Open System Settings" button shows under the toggles so you can re-enable them. A notification's title is the alert name, its subtitle names the provider and metric, and its body is the plain-language verdict. Tapping an alert opens the popover on the dashboard.
+
+## Privacy
+
+| Setting | Options | What it does |
+|---|---|---|
+| Hide From Screen Share | On / Off | Off (default). On replaces the menu bar strip with the Quotapus icon and wordmark while your screen is being shared or recorded, and restores your starred metrics the moment the capture ends. See [Menu bar](menu-bar.md#hiding-usage-while-screen-sharing). |
+
+## Advanced
+
+| Setting | Options | What it does |
+|---|---|---|
+| Log Level | Error / Warning / Info / Debug | How much detail the app writes to its log file. Defaults to Info and persists across launches; raise to Debug while reproducing a problem. Applies immediately. |
+| Log File | Show in Finder button | Selects `~/Library/Logs/Quotapus/Quotapus.log` in Finder. |
+| Reset All Settings… | button | Restores every setting to its default, behind a confirmation alert. |
+
+See [Logging](logging.md) for the full behavior: subsystem tags, the file size cap, and the guarantee that secrets are never written.
+
+**Reset All Settings…** restores every setting on this screen to its default — appearance, usage display, notifications, privacy, log level, the global shortcut (cleared), Launch at Login (turned off), remote devices (removed), and the update preferences (stable channel, automatic checks on) — and also resets all customization, exactly like Customize's Reset All: default layout, order, and menu-bar stars, with providers turned back on for the tools you have installed. The reset cannot be undone.
+
+Not touched: provider logins and API keys, and cached usage data.
+
+## Updates
+
+The Updates section appears in official packaged builds that include the signed update feed. Local
+developer builds do not show it.
+
+| Setting | Options | What it does |
+|---|---|---|
+| Check Automatically | On / Off | Whether Sparkle checks for updates in the background. You can still check manually when this is off. |
+| Beta Updates | On / Off | Adds pre-release builds to the updates you can receive. Stable releases remain available either way. |
+| Check for Updates… | button | Starts a manual update check and opens Sparkle's update window. |
+
+See [Updates](updates.md) for the dashboard banner, channels, and signature verification.
+
+## Version
+
+The app version shows in the popover footer.
+
+Your settings carry across updates — layout, stars, preferences, and the menu-bar shortcut all stay put. When an update changes how a setting is stored, the app upgrades it in place on launch, stepping through any in-between versions if you skipped a few. Nothing is reset. (Earlier betas wiped all settings on every update; that no longer happens.)
+
+Which providers you have on also carries across updates — your choices are never overridden. A brand-new install picks its starting set by detecting the AI tools on your Mac (see [Dashboard § First launch](dashboard.md#first-launch)). When an update ships a provider you've never seen, the same local detection runs once for just that provider and turns it on only if you actually have the tool; everything you've already decided about stays exactly as you set it. See [Which Providers Are On](provider-enablement.md).

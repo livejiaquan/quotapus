@@ -1,6 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
     <channel>
         <title>Quotapus</title>
+        <item>
+            <title>1.0.0-beta.1</title>
+            <pubDate>Tue, 20 Oct 2026 07:37:22 +0000</pubDate>
+            <sparkle:channel>beta</sparkle:channel>
+            <sparkle:version>1001</sparkle:version>
+            <sparkle:shortVersionString>1.0.0-beta.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/livejiaquan/quotapus/releases/download/v1.0.0-beta.1/Quotapus-1.0.0-beta.1.dmg" length="10261738" type="application/octet-stream" sparkle:edSignature="7s+XnAzNZ+24K8F5/8BL0A/bAeRT5jqeZQo1ELp2m/WoFcvbSDVG3TK6tTo5tzIfwJfxYnZUOe+RWnHkBnU2Dg=="/>
+        </item>
     </channel>
 </rss>

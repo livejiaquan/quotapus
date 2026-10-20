@@ -1,0 +1,205 @@
+name: Release
+
+# Tag a version to ship it: `git tag v0.7.0 && git push origin v0.7.0`.
+# A tag with a pre-release suffix (e.g. v0.7.0-beta.1) publishes to the Early Access channel; a plain
+# tag (v0.7.0) publishes to everyone. The one-time secret/Pages setup is documented in the
+# release-swift skill under .agents/skills/release-swift/.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.7.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and sign from the selected branch as this version, upload the DMG as a run artifact, publish nothing"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+# Serialize releases: each run reads appcast.xml from gh-pages, regenerates it with generate_appcast,
+# and force-publishes the branch. Without this, two tags pushed close together could race and drop a
+# feed entry.
+concurrency:
+  group: release-appcast
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Build the requested tag. On a tag push `inputs.tag` is empty and checkout defaults to the
+          # triggering tag; on workflow_dispatch this pins the tag instead of the default branch.
+          ref: ${{ inputs.dry_run && github.ref || inputs.tag }}
+          fetch-depth: 0          # full history so the CFBundleVersion (commit count) is correct
+          persist-credentials: true
+
+      - name: Select Xcode
+        # The app icon is a committed .icns (assets/QuotapusIcon), so no actool step is needed and the
+        # default runner Xcode is fine for the build/sign/notarize steps.
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Resolve tag, version, and channel
+        id: meta
+        run: |
+          TAG="${{ inputs.tag }}"
+          [ -z "$TAG" ] && TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          if [[ "$TAG" == *-* ]]; then CHANNEL=beta; PRERELEASE=true; else CHANNEL=stable; PRERELEASE=false; fi
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "channel=$CHANNEL"
+            echo "prerelease=$PRERELEASE"
+          } >> "$GITHUB_OUTPUT"
+
+      # Imports the signing cert into a temporary keychain and adds it to the search list (cleaned up
+      # automatically in a post step). Quotapus signs with its own self-signed "Quotapus Code Signing"
+      # certificate; a Developer ID Application .p12 works here too (then also set the APPLE_* notary
+      # secrets and the build is notarized instead).
+      - name: Import code-signing certificate
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.CODESIGN_CERTIFICATE }}
+          p12-password: ${{ secrets.CODESIGN_CERTIFICATE_PASSWORD }}
+
+      - name: Resolve signing identity
+        run: |
+          IDENTITY="$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+          if [ -n "$IDENTITY" ]; then
+            echo "SELF_SIGNED=" >> "$GITHUB_ENV"
+          else
+            # Self-signed: trust it for code signing on this runner only, then sign by its SHA-1. Every
+            # release uses this same certificate, so the app's designated requirement never changes.
+            security find-certificate -c "Quotapus Code Signing" -p > "$RUNNER_TEMP/codesign.pem" \
+              || { echo "No Developer ID or Quotapus Code Signing certificate in CODESIGN_CERTIFICATE" >&2; exit 1; }
+            sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$RUNNER_TEMP/codesign.pem"
+            IDENTITY="$(security find-certificate -c "Quotapus Code Signing" -Z | awk '/SHA-1/ {print $NF; exit}')"
+            echo "SELF_SIGNED=1" >> "$GITHUB_ENV"
+          fi
+          [ -n "$IDENTITY" ] || { echo "Could not resolve a signing identity" >&2; exit 1; }
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Write Sparkle private key
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_ed_private_key"
+          echo "SPARKLE_PRIVATE_KEY_FILE=$RUNNER_TEMP/sparkle_ed_private_key" >> "$GITHUB_ENV"
+
+      - name: Carry forward the existing appcast
+        run: |
+          # generate_appcast works on a folder: it reads the existing appcast.xml there and the new DMG,
+          # then writes a merged appcast. "feed/" is that folder. Seed it with the live appcast so prior
+          # versions and the OTHER channel's items are preserved (verified: items whose archive isn't in
+          # the folder keep their original enclosure URLs untouched).
+          mkdir -p feed
+          # Distinguish "no gh-pages yet" (first release -> fresh feed) from "couldn't read it"
+          # (transient failure). Only start fresh when the branch genuinely doesn't exist; otherwise
+          # abort so a network blip can't replace the live feed's full history with a single item.
+          set +e
+          git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            git fetch origin gh-pages
+            git show origin/gh-pages:appcast.xml > feed/appcast.xml \
+              || { echo "gh-pages exists but appcast.xml is unreadable — aborting to protect the feed." >&2; exit 1; }
+            echo "Loaded existing appcast from gh-pages."
+          elif [ "$rc" -eq 2 ]; then
+            echo "No gh-pages branch yet — starting a fresh feed."
+          else
+            echo "Could not reach origin to check for gh-pages — aborting to protect the feed." >&2
+            exit 1
+          fi
+
+      - name: Build and sign the DMG (notarized when Developer ID)
+        env:
+          SPARKLE_PUBLIC_KEY: ${{ secrets.SPARKLE_PUBLIC_KEY }}
+          # Apple ID + app-specific password + team ID for notarytool.
+          NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_APP_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          OPENUSAGE_VERSION: ${{ steps.meta.outputs.version }}
+        run: ./script/release.sh
+
+      - name: Upload dry-run DMG
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quotapus-${{ steps.meta.outputs.version }}-dry-run
+          path: dist/Quotapus-${{ steps.meta.outputs.version }}.dmg
+
+      - name: Publish DMG to GitHub Releases
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Quotapus ${{ steps.meta.outputs.version }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          files: dist/Quotapus-${{ steps.meta.outputs.version }}.dmg
+
+      - name: Generate appcast with Sparkle
+        if: ${{ !inputs.dry_run }}
+        env:
+          DMG: Quotapus-${{ steps.meta.outputs.version }}.dmg
+          CHANNEL: ${{ steps.meta.outputs.channel }}
+          # Per-tag GitHub release asset base. generate_appcast applies this prefix only to the new DMG
+          # in feed/; preserved items keep their own (older-tag) URLs.
+          DOWNLOAD_PREFIX: https://github.com/${{ github.repository }}/releases/download/${{ steps.meta.outputs.tag }}/
+        run: |
+          # Locate generate_appcast from the Sparkle SwiftPM artifact that release.sh already fetched.
+          GA="$(find .build/artifacts -type f -name generate_appcast 2>/dev/null | head -n1)"
+          [ -x "$GA" ] || { echo "generate_appcast not found under .build/artifacts" >&2; exit 1; }
+
+          # How many feed items existed before (to confirm nothing is dropped). 0 on first release.
+          # Sparkle normally keeps only a few versions per branch; this release feed is intentionally
+          # append-only so older installs and the other channel's items remain available.
+          before=0
+          [ -f feed/appcast.xml ] && before=$(grep -c "<item>" feed/appcast.xml || true)
+
+          cp "dist/$DMG" "feed/$DMG"
+
+          # Pre-release tags publish to the Early Access (beta) channel; plain tags publish to everyone.
+          channel_arg=()
+          [ "$CHANNEL" = "beta" ] && channel_arg=(--channel beta)
+
+          # The key file is base64 (it can contain '/'); pass it via stdin so it's never an argv/glob.
+          cat "$SPARKLE_PRIVATE_KEY_FILE" | "$GA" \
+            --ed-key-file - \
+            --download-url-prefix "$DOWNLOAD_PREFIX" \
+            --maximum-versions 0 \
+            "${channel_arg[@]}" \
+            feed
+
+          # Fail loudly if the merge went wrong. The new DMG's enclosure must exist AND carry an EdDSA
+          # signature on the same line (generate_appcast silently omits it if SUPublicEDKey doesn't match
+          # the signing key), and the item count must not shrink (a dropped preserved/other-channel entry).
+          after=$(grep -c "<item>" feed/appcast.xml || true)
+          grep -Eq "$DMG\"[^>]*sparkle:edSignature" feed/appcast.xml \
+            || { echo "New item for $DMG is missing or unsigned (SUPublicEDKey/private-key mismatch?)." >&2; exit 1; }
+          [ "$after" -ge "$before" ] || { echo "Appcast item count dropped ($before -> $after) — aborting." >&2; exit 1; }
+          echo "Appcast OK: $before -> $after items."
+
+      - name: Assemble Pages directory
+        if: ${{ !inputs.dry_run }}
+        run: |
+          mkdir -p public
+          cp feed/appcast.xml public/appcast.xml
+
+      - name: Publish appcast to GitHub Pages
+        if: ${{ !inputs.dry_run }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./public
+          # Keep any other files already on gh-pages when publishing the appcast.
+          keep_files: true

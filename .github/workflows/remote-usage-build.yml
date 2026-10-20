@@ -29,7 +29,7 @@ jobs:
         run: ditto -c -k --sequesterRsrc --keepParent dist/Quotapus.app Quotapus.zip
 
       - name: Upload app bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Quotapus
           path: Quotapus.zip

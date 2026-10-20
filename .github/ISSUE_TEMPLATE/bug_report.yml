@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in OpenUsage
+description: Report a bug in Quotapus
 labels: ["bug"]
 body:
   - type: markdown
@@ -20,7 +20,7 @@ body:
       label: Steps to Reproduce
       description: How can we reproduce this?
       placeholder: |
-        1. Open OpenUsage
+        1. Open Quotapus
         2. Go to ...
         3. Click on ...
         4. See error
@@ -43,16 +43,16 @@ body:
   - type: input
     id: version
     attributes:
-      label: OpenUsage Version
+      label: Quotapus Version
       description: Which version are you running?
-      placeholder: "e.g. 0.7.0"
+      placeholder: "e.g. 1.0.0"
     validations:
       required: true
   - type: input
     id: macos
     attributes:
       label: macOS Version
-      description: OpenUsage requires macOS 15 (Sequoia) or later.
+      description: Quotapus requires macOS 15 (Sequoia) or later.
       placeholder: "e.g. 15.5"
     validations:
       required: true

@@ -4,13 +4,19 @@ enum LiveFamily: String, Sendable, CaseIterable {
     case claude, codex
 }
 
+/// Where `LiveActivityStore` gets one family's recent token buckets: the log tail, or demo mode's
+/// synthetic source.
+protocol LiveTailSource: Actor {
+    func poll(now: Date) async -> LiveRateBuckets
+}
+
 /// Live token speed from this Mac's recent Claude or Codex session logs. Each poll looks only at files
 /// modified in the last 30 minutes and reads only bytes appended since the previous poll, parsing
 /// complete lines with the same parsers the daily history uses, so live and daily counts agree.
 ///
 /// Every file keeps its own buckets: when a file shrinks (rewritten or truncated) only that file's
 /// contribution is dropped and re-read, which keeps a rewrite from double counting.
-actor LiveLogTail {
+actor LiveLogTail: LiveTailSource {
     static let window: TimeInterval = 30 * 60
     static let discoveryInterval: TimeInterval = 10
 

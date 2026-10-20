@@ -565,7 +565,14 @@ final class WidgetDataStore {
             now: renderDate
         )
         var rendered = sourceSnapshots
+        // Remote Devices import only some providers (Claude and Codex today). In All Devices, a provider
+        // no device reported keeps this Mac's own rows and note instead of claiming "Across your devices"
+        // for numbers that are this Mac's alone.
+        let peerFamilies = Set(selectedPeers.flatMap { document in
+            document.providers.filter { !$0.value.series.daily.isEmpty }.keys.map { ProviderAccountID.family(of: $0) }
+        })
         for (providerID, history) in merged {
+            if historyScopeID == "all", !peerFamilies.contains(ProviderAccountID.family(of: providerID)) { continue }
             guard let descriptor = registry.historyDescriptorsByProvider[providerID],
                   let provider = registry.provider(id: providerID)
             else { continue }

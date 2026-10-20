@@ -12,6 +12,8 @@ final class RemoteUsageDeviceStore {
     private let defaults: UserDefaults
     private let dataStore: WidgetDataStore
     private let client: SSHRemoteUsageClient
+    /// Demo mode's stand-in for the SSH import (see `DemoMode`); `nil` everywhere else.
+    private let fetchOverride: (@Sendable (RemoteUsageDevice) async throws -> RemoteFetchResult)?
     private var documents: [String: UsageHistoryDocument]
     private var refreshingIDs: Set<String> = []
     private var backgroundRefresh: Task<Void, Never>?
@@ -37,10 +39,12 @@ final class RemoteUsageDeviceStore {
     }
 
     init(dataStore: WidgetDataStore, defaults: UserDefaults = .standard,
-         client: SSHRemoteUsageClient = SSHRemoteUsageClient()) {
+         client: SSHRemoteUsageClient = SSHRemoteUsageClient(),
+         fetchOverride: (@Sendable (RemoteUsageDevice) async throws -> RemoteFetchResult)? = nil) {
         self.dataStore = dataStore
         self.defaults = defaults
         self.client = client
+        self.fetchOverride = fetchOverride
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let loadedDevices = (defaults.data(forKey: Self.devicesKey)
@@ -154,7 +158,7 @@ final class RemoteUsageDeviceStore {
         else { return }
         defer { refreshingIDs.remove(id) }
         do {
-            let result = try await client.fetch(device)
+            let result = if let fetchOverride { try await fetchOverride(device) } else { try await client.fetch(device) }
             let document = result.document
             try document.validate()
             // A device removed while SSH was in flight must not reappear in the combined view.
@@ -171,6 +175,15 @@ final class RemoteUsageDeviceStore {
             liveSamples[id]?.lastFailureAt = Date()
             AppLog.warn(.config, "remote usage \(device.name): \(error.localizedDescription)")
         }
+    }
+
+    /// Demo mode's device list and summaries, written where `init` reads them. Demo builds use their own
+    /// bundle id, so this never touches a real install's devices.
+    static func seed(devices: [RemoteUsageDevice], documents: [UsageHistoryDocument], defaults: UserDefaults = .standard) {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        if let data = try? JSONEncoder().encode(devices) { defaults.set(data, forKey: devicesKey) }
+        if let data = try? encoder.encode(documents) { defaults.set(data, forKey: summariesKey) }
     }
 
     private func persistDevices() {

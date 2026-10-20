@@ -73,13 +73,18 @@ final class AppContainer {
         self.shellEnvironmentSnapshotTask = ShellEnvironmentSnapshotStore(defaults: .standard).startRefreshTask()
         // The launch account pass: which account is signed in at each family's default home. Feeds
         // the snapshot cache's account stamp and reconciles the account registry.
-        let accountAssembly = await ProviderAccountAssembly.make(waitsForLoginShell: true)
+        // Demo mode never reads this Mac's accounts (no Keychain prompts, no real identities).
+        let demo = DemoMode.fixture
+        let accountAssembly = demo == nil
+            ? await ProviderAccountAssembly.make(waitsForLoginShell: true)
+            : ProviderAccountAssembly(identityKeysByCard: [:])
 
-        let providers = ProviderCatalog.make(
+        var providers = ProviderCatalog.make(
             claudeCards: accountAssembly.claudeCards,
             codex: accountAssembly.codex,
             claudeIdentityKeys: accountAssembly.identityKeysByCard
         )
+        if let demo { providers = DemoMode.wrap(providers, fixture: demo) }
         let registry = WidgetRegistry.from(providers)
         let apiKeyProviders = providers.compactMap { $0 as? any APIKeyManaging }
         let enablement = ProviderEnablementStore()
@@ -102,16 +107,17 @@ final class AppContainer {
             notificationSettings: { notificationSettings },
             providerIdentityKeys: accountAssembly.identityKeysByCard
         )
-        let remoteDevices = RemoteUsageDeviceStore(dataStore: dataStore)
+        if let demo { RemoteUsageDeviceStore.seed(devices: demo.devices, documents: demo.documents) }
+        let remoteDevices = RemoteUsageDeviceStore(dataStore: dataStore, fetchOverride: demo.map(DemoMode.remoteFetcher))
         // Default-home scanners used only to list recently written logs for the live tails.
         let claudeLiveScanner = ClaudeLogUsageScanner()
         let codexLiveScanner = CodexLogUsageScanner()
         let liveActivity = LiveActivityStore(
-            tails: [
+            tails: demo.map(DemoMode.liveTails) ?? [
                 .claude: LiveLogTail(family: .claude) { await claudeLiveScanner.liveCandidateFiles(modifiedSince: $0) },
                 .codex: LiveLogTail(family: .codex) { await codexLiveScanner.liveCandidateFiles(modifiedSince: $0) },
             ],
-            watchedRoots: LiveActivityStore.defaultWatchedRoots(),
+            watchedRoots: demo == nil ? LiveActivityStore.defaultWatchedRoots() : [],
             remoteDevices: remoteDevices
         )
         // Re-enabling a provider should fetch it promptly, so clear any leftover failure backoff before
@@ -129,6 +135,9 @@ final class AppContainer {
             enablement: enablement,
             onboarding: onboarding
         )
+        if let demo {
+            DemoMode.enableFixtureProviders(demo, providers: providers, enablement: enablement, onboarding: onboarding)
+        }
         // Providers added by an update get the same credential detection on their first launch — enabled
         // only when the user actually has the tool. Runs every launch; a no-op unless the registry has a
         // provider this install has never seen (fresh installs were just baselined by FirstRunSeeder).
@@ -147,7 +156,9 @@ final class AppContainer {
         self.remoteDevices = remoteDevices
         self.liveActivity = liveActivity
         liveActivity.prewarm()
-        self.liveOwnerCardIDs = LiveActivityComposer.defaultSourceOwners(ProviderAccountsStore(defaults: .standard).records)
+        self.liveOwnerCardIDs = demo == nil
+            ? LiveActivityComposer.defaultSourceOwners(ProviderAccountsStore(defaults: .standard).records)
+            : [.claude: "claude", .codex: "codex"]
 
         // The resets popover's claim services, sharing each provider's credential loading and HTTP
         // client so the claim's auth can't drift from the provider's. A claim forces a refresh so the

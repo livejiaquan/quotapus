@@ -21,8 +21,10 @@ TARGET_NAME="OpenUsage"                 # SwiftPM product name (internal, kept f
 APP_DISPLAY="Quotapus"                   # user-facing app name and bundle executable
 BUNDLE_ID="${BUNDLE_ID:-com.livejiaquan.quotapus.dev}"
 MIN_SYSTEM_VERSION="15.0"
-APP_VERSION="0.7.0"
-APP_BUILD="0.7.0"
+# Overridable so demo recordings (script/demo/run_demo.sh) show the released version.
+APP_VERSION="${APP_VERSION:-0.7.0}"
+APP_BUILD="${APP_BUILD:-0.7.0}"
+VERSION_SUFFIX="${VERSION_SUFFIX--dev}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -92,7 +94,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>$APP_VERSION-dev</string>
+  <string>$APP_VERSION$VERSION_SUFFIX</string>
   <key>CFBundleVersion</key>
   <string>$APP_BUILD</string>
   <key>LSMinimumSystemVersion</key>

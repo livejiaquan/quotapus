@@ -13,7 +13,10 @@ import SwiftUI
 /// app, so keyboard input (Esc/Return navigation, the Settings shortcut recorder) works on the first
 /// try. (The pattern keyboard-first menu-bar apps use; cross-checked via GitHits.)
 final class MenuBarPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
+    /// Off only for scripted demo recordings, so the panel never takes the keyboard from whatever app
+    /// is in use while it records (see `DemoDirector`).
+    var allowsKey = true
+    override var canBecomeKey: Bool { allowsKey }
     override var canBecomeMain: Bool { false }
 }
 
@@ -31,6 +34,8 @@ final class StatusItemController: NSObject {
     /// (which never retains the controller), so this can be a plain non-optional `let`.
     private let imageUpdater: StatusItemImageUpdater
     private let panel: MenuBarPanel
+    /// Scripted demo recordings only (`DemoDirector`); `nil` in normal use.
+    private var director: DemoDirector?
     private let heightController: PanelHeightController
     private lazy var outsideClickMonitor = PanelOutsideClickMonitor(
         panel: panel,
@@ -125,6 +130,17 @@ final class StatusItemController: NSObject {
         }
 
         heightController.installBridge()
+
+        director = DemoDirector.make(
+            panel: panel,
+            open: { [weak self] in self?.showPopover() },
+            close: { [weak self] in self?.hidePanel() },
+            statusImage: { [weak self] in self?.statusItem.button?.image }
+        )
+        if let director {
+            panel.allowsKey = false
+            director.start()
+        }
 
         AppLog.info(.statusItem, "Status item ready (button: \(self.statusItem.button != nil), shortcut: \(KeyboardShortcuts.getShortcut(for: .togglePopover)?.description ?? "none"))")
     }
@@ -315,7 +331,8 @@ final class StatusItemController: NSObject {
             AppLog.error(.statusItem, "Cannot show panel: status item has no button")
             return
         }
-        let buttonRectOnScreen = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        let buttonRectOnScreen = director?.anchorRect
+            ?? buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         // Record the display before changing the visibility signal. That signal makes SwiftUI
         // immediately clamp the measured height; without the display anchor the clamp falls back to
         // the fixed opening guess, making large and small displays open at the same height.
@@ -339,7 +356,8 @@ final class StatusItemController: NSObject {
         // monitor, not first responder), and Tab from here focuses the first control as expected.
         clearStrayFocus()
         button.highlight(true)
-        outsideClickMonitor.start()
+        // A scripted recording keeps the panel up while the person at the Mac clicks elsewhere.
+        if director == nil { outsideClickMonitor.start() }
     }
 
     private func hidePanel() {

@@ -11,7 +11,7 @@ final class LiveActivityStore {
     static let pollInterval: Duration = .seconds(2)
     static let backgroundInterval: Duration = .seconds(30)
 
-    @ObservationIgnored private let tails: [LiveFamily: LiveLogTail]
+    @ObservationIgnored private let tails: [LiveFamily: any LiveTailSource]
     @ObservationIgnored private let watchedRoots: [URL]
     @ObservationIgnored private let remoteDevices: RemoteUsageDeviceStore
     @ObservationIgnored private let now: () -> Date
@@ -24,7 +24,7 @@ final class LiveActivityStore {
     /// False until the first poll finishes, so the card can say "Measuring…" instead of a blank.
     private(set) var hasMeasured = false
 
-    init(tails: [LiveFamily: LiveLogTail], watchedRoots: [URL], remoteDevices: RemoteUsageDeviceStore,
+    init(tails: [LiveFamily: any LiveTailSource], watchedRoots: [URL], remoteDevices: RemoteUsageDeviceStore,
          now: @escaping () -> Date = Date.init) {
         self.tails = tails
         self.watchedRoots = watchedRoots

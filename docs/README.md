@@ -43,3 +43,4 @@ How the app is built and how to extend it.
 - [Adding a provider](adding-a-provider.md) — the metric contract and the register/test/document steps
 - [Debugging & capturing logs](debugging.md) — running a local build and streaming logs
 - [Logging](logging.md) — the file log, log levels, subsystem tags, and what is never logged
+- [Demo mode](demo-mode.md) — the real app on sample data, for README recordings and screenshots

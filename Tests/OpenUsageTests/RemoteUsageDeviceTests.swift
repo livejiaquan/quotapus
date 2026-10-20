@@ -104,6 +104,39 @@ final class RemoteUsageDeviceTests: XCTestCase {
             .providers["codex"]?.series.daily.first?.totalTokens, 10)
     }
 
+    /// A provider Remote Devices doesn't import (OpenCode, Grok, Antigravity) must not be relabeled
+    /// "Across your devices" in All Devices: its numbers are this Mac's alone.
+    @MainActor
+    func testAllDevicesLeavesProvidersNoDeviceReportedAsThisMacOnly() throws {
+        let suite = "RemoteUsageDeviceTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let day = DailyUsageAccumulator.dayKey(from: .now)
+        func history(_ tokens: Int) -> ProviderUsageHistory {
+            ProviderUsageHistory(series: DailyUsageSeries(daily: [
+                DailyUsageEntry(date: day, totalTokens: tokens, costUSD: Double(tokens))
+            ]))
+        }
+        let codex = Provider(id: "codex", displayName: "Codex", icon: .providerMark("codex"))
+        let opencode = Provider(id: "opencode", displayName: "OpenCode", icon: .providerMark("opencode"))
+        let descriptors = [codex, opencode].map {
+            WidgetDescriptor.usageTrend(provider: $0)
+                .exportingHistory(scope: .machineLocal, estimatedCost: true, sourceNote: "logs")
+        }
+        let registry = WidgetRegistry(providers: [codex, opencode], descriptors: descriptors)
+        let cache = ProviderSnapshotCache(userDefaults: defaults, storageKey: "snapshots")
+        cache.store(ProviderSnapshot(providerID: "codex", displayName: "Codex", lines: [], usageHistory: history(10)))
+        cache.store(ProviderSnapshot(providerID: "opencode", displayName: "OpenCode", lines: [], usageHistory: history(5)))
+        let store = WidgetDataStore(registry: registry, providers: [], cache: cache, defaults: defaults)
+
+        store.setRemoteHistoryDocuments([UsageHistoryDocument(deviceID: "ssh-lab", deviceName: "Lab WSL",
+                                                              updatedAt: .now, providers: ["codex": history(20)])])
+
+        XCTAssertEqual(store.historyScopeID, "all")
+        XCTAssertEqual(store.snapshots["codex"]?.usageHistory?.series.daily.first?.totalTokens, 30)
+        XCTAssertEqual(store.snapshots["opencode"], store.localSnapshots["opencode"])
+    }
+
     func testHungRemoteFetchFailsWithTimeoutInsteadOfBlocking() async throws {
         // A fake ssh whose remote Python never finishes, e.g. a log folder on a dead network mount.
         let script = FileManager.default.temporaryDirectory.appendingPathComponent("hung-ssh-\(UUID().uuidString)")

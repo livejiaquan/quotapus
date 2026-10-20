@@ -84,6 +84,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func finishLaunching(isFreshInstall: Bool) async {
+        // Demo mode turns on its sample providers itself, so it opens straight to the dashboard.
+        if DemoMode.isActive { FirstLaunchSetup.clearPending() }
         let showsWelcome = FirstLaunchSetup.isPending()
         // Nothing asks for Keychain access before the user picks providers on the welcome screen.
         if showsWelcome { KeychainAccessGuard.holdPopups() }

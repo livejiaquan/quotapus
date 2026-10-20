@@ -1,12 +1,8 @@
-<!-- OpenUsage has a strict, issue-first PR policy. External pull requests are closed
-automatically unless they link an issue a maintainer has approved with the `approved`
-label and assigned to the PR author. PRs adding more than 1,000 lines receive a warning.
-Visual changes require screenshots during maintainer review.
-See CONTRIBUTING.md. Maintainers and collaborators may open PRs directly. -->
+<!-- Quotapus is issue-first: please open or comment on an issue before a larger change, so we can
+agree on it before you build it. Visual changes need screenshots. See CONTRIBUTING.md. -->
 
-## Approved issue
+## Related issue
 
-<!-- External PRs require an open issue labeled `approved` and assigned to their author. -->
 Fixes #
 
 ## TL;DR

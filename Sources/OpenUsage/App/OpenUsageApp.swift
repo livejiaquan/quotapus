@@ -25,8 +25,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             case .acquired(let token):
                 singleInstanceLock = token
                 holdsLock = true
+                listenForOtherCopies()
             case .alreadyRunning:
                 SingleInstanceGuard.activateExistingInstance()
+                Self.askRunningCopyToShowItself(bundleID)
                 AppLog.info(.lifecycle, "duplicate launch detected by process lock; terminating")
                 NSApp.terminate(nil)
                 return
@@ -129,8 +131,42 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     public func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        firstLaunchWindow?.show()
+        showItself()
         return true
+    }
+
+    /// Opening the app while it runs should always show something: the welcome window while it's
+    /// pending, otherwise the dashboard panel under the menu bar icon.
+    private func showItself() {
+        if let firstLaunchWindow {
+            firstLaunchWindow.show()
+        } else {
+            MenuBarPopover.showHandler?()
+        }
+    }
+
+    private static func showItselfNotification(_ bundleID: String) -> Notification.Name {
+        Notification.Name("\(bundleID).showItself")
+    }
+
+    /// A second copy (say, one opened from the DMG while the installed copy runs) quits right away, so
+    /// it asks the running copy to show itself first; otherwise opening the app would look like nothing happened.
+    private static func askRunningCopyToShowItself(_ bundleID: String) {
+        DistributedNotificationCenter.default().postNotificationName(
+            showItselfNotification(bundleID), object: nil, userInfo: nil, deliverImmediately: true
+        )
+    }
+
+    private func listenForOtherCopies() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        DistributedNotificationCenter.default().addObserver(
+            forName: Self.showItselfNotification(bundleID), object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                AppLog.info(.lifecycle, "another copy was opened; showing this one")
+                self?.showItself()
+            }
+        }
     }
 
     /// Flush pending snapshot writes on quit so the last refresh isn't lost across a clean quit.

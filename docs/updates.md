@@ -31,7 +31,9 @@ Everyone always receives stable releases — the beta option only *adds* pre-rel
 Update builds are published on Quotapus's GitHub releases, and the list of available versions (the
 "appcast") is served from `https://livejiaquan.github.io/quotapus/appcast.xml`. Every update is signed
 with Quotapus's own update key (EdDSA), and the app refuses any download that doesn't match it. The app
-itself is signed with Quotapus's own code-signing certificate, the same one for every release, so macOS
-keeps your Keychain "Always Allow" choices across updates. It isn't an Apple Developer ID, so the very
-first launch needs one approval in System Settings (see the README's Installation); updates after that
-install from inside the app. Local developer builds have no update feed and never check.
+itself is signed with Quotapus's own code-signing certificate, the same one for every release. It isn't
+an Apple Developer ID, so the very first launch needs one approval in System Settings (see the README's
+Installation); updates after that install from inside the app. If you use Claude Desktop, macOS asks
+again after each update before Quotapus can read **Claude Safe Storage** (see
+[Claude](providers/claude.md)): macOS ties that approval to each exact build of an app without an Apple
+Developer ID. Claude Code's own login is not affected. Local developer builds have no update feed and never check.

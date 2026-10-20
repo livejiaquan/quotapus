@@ -22,8 +22,9 @@ set -euo pipefail
 #   SELF_SIGNED=1         CODESIGN_IDENTITY is Quotapus's own (self-signed) certificate, not a Developer ID:
 #                         no notarization, no hardened runtime (library validation would refuse Sparkle
 #                         without a Team ID), no Apple timestamp. The certificate is the same for every
-#                         release, so the designated requirement — and users' Keychain approvals — survive
-#                         updates. First launch needs one "Open Anyway" in System Settings.
+#                         release, so the designated requirement stays stable. First launch needs one
+#                         "Open Anyway"; Keychain items guarded per build (Claude Safe Storage) ask again
+#                         after each update — only a Developer ID (Team ID) avoids that.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"

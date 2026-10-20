@@ -30,7 +30,8 @@ Quotapus started from OpenUsage's code and has since gone its own way in design 
 
 1. Download the latest `Quotapus-<version>.dmg` from [Releases](https://github.com/livejiaquan/quotapus/releases/latest) and drag **Quotapus** into **Applications**.
 2. Open it once. Quotapus is signed with its own certificate rather than an Apple Developer ID, so macOS says it can't verify the developer. Open **System Settings → Privacy & Security**, scroll to the message about Quotapus, and click **Open Anyway**. This is needed only the first time.
-3. After that, Quotapus checks this repository for new versions about once an hour and offers to install them (see [Updates](docs/updates.md)).
+3. If you use Claude Desktop, macOS asks for your Mac login password so Quotapus can read **Claude Safe Storage**, the key Claude Desktop encrypts its login with. Quotapus only reads it to show that account's usage, never changes it, and never sees your password. Choose **Always Allow**; macOS asks again after each Quotapus update. Choose **Deny** if you only use Claude Code.
+4. After that, Quotapus checks this repository for new versions about once an hour and offers to install them (see [Updates](docs/updates.md)).
 
 Requires macOS 15 (Sequoia) or later. You can also build it yourself (see [Building](#building)).
 
@@ -89,7 +90,7 @@ It needs these repository secrets (Settings → Secrets and variables → Action
 | `SPARKLE_PRIVATE_KEY`            | base64 Ed25519 private key (32-byte seed) that signs each DMG for Sparkle  |
 | `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | optional; only with a Developer ID certificate, for notarization |
 
-Releases are signed with Quotapus's own self-signed certificate, the same for every release, so users' Keychain approvals survive updates; the first launch needs one **Open Anyway** (see Installation). **Never lose or regenerate the certificate or the Sparkle private key**: installed copies only accept updates signed by the same Sparkle key, and a new certificate would make every user re-approve Keychain access. Keep offline backups of both. GitHub Pages must use **GitHub Actions** as its source, and [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) must be on `main`.
+Releases are signed with Quotapus's own self-signed certificate, the same for every release; the first launch needs one **Open Anyway** (see Installation), and Claude Desktop users approve **Claude Safe Storage** again after each update (macOS ties that approval to each build of an app without a Developer ID). A Developer ID certificate plus the `APPLE_*` secrets removes both. **Never lose or regenerate the certificate or the Sparkle private key**: installed copies only accept updates signed by the same Sparkle key, and a new certificate would change the app's identity for every user. Keep offline backups of both. GitHub Pages must use **GitHub Actions** as its source, and [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) must be on `main`.
 
 ## Credits, License, and Trademark
 

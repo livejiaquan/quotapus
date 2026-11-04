@@ -147,7 +147,7 @@ Quotapus started from [OpenUsage](https://github.com/robinebers/openusage)'s cod
 - **Remote Devices and live cards** are Quotapus additions.
 - **No analytics.** Quotapus contains no analytics or crash-reporting code, so it sends no usage statistics anywhere.
 - **No iCloud Sync, no command-line helper, no share images.** Remote Devices covers other machines over SSH; the rest was removed to keep the app small.
-- **Pricing stays local.** Model prices come from LiteLLM, models.dev, and a price list bundled with the app — nothing is fetched from OpenUsage.
+- **Pricing doesn't go through OpenUsage.** Model prices come from LiteLLM and models.dev (refreshed about once an hour) and a price list bundled with the app.
 - **Updates come from this repository**, not from OpenUsage's update feed.
 
 </details>
@@ -229,7 +229,7 @@ Yes. Quotapus has its own bundle ID, settings, logs, and local API port, so the 
 - **[OpenUsage](https://github.com/robinebers/openusage)**, the app Quotapus is built on. It syncs history between your Macs over iCloud and has a command-line helper.
 - **[CodexBar](https://github.com/steipete/CodexBar)** tracks over a hundred providers, with a Linux desktop app and a CLI.
 
-Quotapus adds one thing: the Linux servers and WSL boxes you SSH into, counted in the same panel as your Mac.
+Quotapus focuses on one setup: the Linux servers and WSL boxes you SSH into, counted in the same panel as your Mac.
 
 ## Contributing
 
@@ -247,28 +247,7 @@ swift test                  # run the test suite
 ./script/build_and_run.sh   # build and launch dist/Quotapus.app (no install)
 ```
 
-Internal module and type names keep OpenUsage's spelling on purpose, so changes from upstream merge cleanly. Everything a user sees reads from `Sources/OpenUsage/Support/AppBrand.swift`. The app icon lives in `assets/QuotapusIcon` (see its README).
-
-<details>
-<summary><b>Releasing</b> (maintainers)</summary>
-
-<br>
-
-Pushing a `v*` tag runs [.github/workflows/release.yml](.github/workflows/release.yml), which builds a universal app, signs it, publishes `Quotapus-<version>.dmg` on GitHub Releases, and updates the Sparkle appcast on this repository's GitHub Pages (`https://livejiaquan.github.io/quotapus/appcast.xml`). A tag with a suffix such as `v1.1.0-beta.1` goes to the Beta Updates channel; a plain tag goes to everyone. Run the workflow by hand with **dry_run** to build and sign a DMG as a run artifact without publishing anything.
-
-It needs these repository secrets (Settings → Secrets and variables → Actions):
-
-| Secret                           | What it is                                                                 |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `CODESIGN_CERTIFICATE`           | base64 of the "Quotapus Code Signing" `.p12` (or a Developer ID `.p12`)    |
-| `CODESIGN_CERTIFICATE_PASSWORD`  | the password of that `.p12`                                                |
-| `SPARKLE_PUBLIC_KEY`             | base64 Ed25519 public key, baked into the build as `SUPublicEDKey`         |
-| `SPARKLE_PRIVATE_KEY`            | base64 Ed25519 private key (32-byte seed) that signs each DMG for Sparkle  |
-| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | optional; only with a Developer ID certificate, for notarization |
-
-Releases are signed with Quotapus's own self-signed certificate, the same for every release; the first launch needs one **Open Anyway** (see Installation), and Claude Desktop users approve **Claude Safe Storage** again after each update (macOS ties that approval to each build of an app without a Developer ID). A Developer ID certificate plus the `APPLE_*` secrets removes both. **Never lose or regenerate the certificate or the Sparkle private key**: installed copies only accept updates signed by the same Sparkle key, and a new certificate would change the app's identity for every user. Keep offline backups of both. GitHub Pages must use **GitHub Actions** as its source, and [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) must be on `main`.
-
-</details>
+Internal module and type names keep OpenUsage's spelling on purpose, so changes from upstream merge cleanly. Everything a user sees reads from `Sources/OpenUsage/Support/AppBrand.swift`. The app icon lives in `assets/QuotapusIcon` (see its README). Maintainers: see [Releasing](docs/releasing.md).
 
 ## Credits, License, and Trademark
 
@@ -277,7 +256,7 @@ Quotapus is built on [OpenUsage](https://github.com/robinebers/openusage), creat
 > [!NOTE]
 > Quotapus is an unofficial fork of OpenUsage. It is not the official OpenUsage app and is not endorsed by its maintainers. Report problems with Quotapus [here](https://github.com/livejiaquan/quotapus/issues), not to the OpenUsage project.
 
-"OpenUsage" and its logo are trademarks of Robin Ebers (see [TRADEMARK.md](TRADEMARK.md)). Per that policy, this fork uses its own name and icon and doesn't claim to be the official project.
+"OpenUsage" and its logo are trademarks of Robin Ebers (see [TRADEMARK.md](TRADEMARK.md)). Per that policy, this fork uses its own name and icon and doesn't claim to be the official project. The Quotapus name and icon are not covered by the MIT license either; see the same file.
 
 <div align="right"><a href="#readme-top">Back to top ↑</a></div>
 

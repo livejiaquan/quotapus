@@ -147,7 +147,7 @@ Quotapus 從 [OpenUsage](https://github.com/robinebers/openusage) 的程式碼�
 - **Remote Devices 和即時卡片**是 Quotapus 新增的功能。
 - **沒有數據追蹤。** Quotapus 沒有任何分析或當機回報的程式碼，不會傳送任何使用統計。
 - **沒有 iCloud 同步、命令列工具和分享圖片。** 其他機器改用 SSH 的 Remote Devices；其餘功能為了讓 App 更輕巧而移除。
-- **價格資料留在本機。** 模型價格來自 LiteLLM、models.dev 和 App 內建的價目表，不會從 OpenUsage 下載任何東西。
+- **價格資料不經過 OpenUsage。** 模型價格來自 LiteLLM、models.dev（大約每小時更新一次）和 App 內建的價目表。
 - **更新來自這個 repo**，不是 OpenUsage 的更新來源。
 
 </details>
@@ -229,7 +229,7 @@ Quotapus 用的是自己的簽署憑證，不是 Apple Developer ID，所以 Gat
 - **[OpenUsage](https://github.com/robinebers/openusage)**：Quotapus 的基礎。它用 iCloud 同步多台 Mac 的歷史，也有命令列工具。
 - **[CodexBar](https://github.com/steipete/CodexBar)**：追蹤一百多家服務，另有 Linux 桌面版和命令列工具。
 
-Quotapus 多做了一件事：把你 SSH 連進去的 Linux 伺服器和 WSL，跟你的 Mac 算在同一個面板裡。
+Quotapus 的重點是：把你 SSH 連進去的 Linux 伺服器和 WSL，跟你的 Mac 算在同一個面板裡。
 
 ## 參與貢獻
 
@@ -249,7 +249,7 @@ swift test                  # 執行測試
 
 內部模組和型別名稱刻意保留 OpenUsage 的拼法，方便合併上游的更新。使用者看到的文字都來自 `Sources/OpenUsage/Support/AppBrand.swift`。App 圖示放在 `assets/QuotapusIcon`（見該資料夾的 README）。
 
-發布流程（給維護者）請見英文 README [Building](README.md#building) 段落下方的 Releasing。
+發布流程（給維護者）請見 [Releasing](docs/releasing.md)（英文）。
 
 ## 致謝、授權與商標
 
@@ -258,7 +258,7 @@ Quotapus 建立在 Robin Ebers 開發、並與 Mert 和 David 一起維護的 [O
 > [!NOTE]
 > Quotapus 是 OpenUsage 的非官方分支，不是官方的 OpenUsage App，也沒有獲得其維護者的背書。Quotapus 的問題請回報到[這裡](https://github.com/livejiaquan/quotapus/issues)，不要回報給 OpenUsage 專案。
 
-「OpenUsage」名稱與標誌是 Robin Ebers 的商標（見 [TRADEMARK.md](TRADEMARK.md)）。依照該政策，本分支使用自己的名稱與圖示，也不會自稱是官方專案。
+「OpenUsage」名稱與標誌是 Robin Ebers 的商標（見 [TRADEMARK.md](TRADEMARK.md)）。依照該政策，本分支使用自己的名稱與圖示，也不會自稱是官方專案。Quotapus 的名稱與圖示同樣不在 MIT 授權範圍內，詳見同一份檔案。
 
 <div align="right"><a href="#readme-top">回到頂端 ↑</a></div>
 

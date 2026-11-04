@@ -136,22 +136,6 @@ Most providers read the credentials already on your machine (keychain, auth file
 - **[Proxy support](docs/proxy.md)** and **[extra local log folders](docs/local-log-roots.md).**
 - **Native settings.** Launch at login, global shortcut, icon style, theme, density — see [Settings](docs/settings.md).
 
-<details>
-<summary><b>How Quotapus differs from OpenUsage</b></summary>
-
-<br>
-
-Quotapus started from [OpenUsage](https://github.com/robinebers/openusage)'s code and has since gone its own way in design and features.
-
-- **Different app, side by side.** Quotapus has its own bundle ID (`com.livejiaquan.quotapus`), settings, logs (`~/Library/Logs/Quotapus`), config folder (`~/.quotapus`, `~/.config/quotapus`), and local API port (`6741`), so it can be installed next to the official app without either touching the other.
-- **Remote Devices and live cards** are Quotapus additions.
-- **No analytics.** Quotapus contains no analytics or crash-reporting code, so it sends no usage statistics anywhere.
-- **No iCloud Sync, no command-line helper, no share images.** Remote Devices covers other machines over SSH; the rest was removed to keep the app small.
-- **Pricing doesn't go through OpenUsage.** Model prices come from LiteLLM and models.dev (refreshed about once an hour) and a price list bundled with the app.
-- **Updates come from this repository**, not from OpenUsage's update feed.
-
-</details>
-
 ## FAQ
 
 <details>
@@ -208,15 +192,6 @@ No analytics and no crash reports. It talks to the provider APIs you use, downlo
 
 </details>
 
-<details>
-<summary><b>Can I run it next to OpenUsage?</b></summary>
-
-<br>
-
-Yes. Quotapus has its own bundle ID, settings, logs, and local API port, so the two never touch each other.
-
-</details>
-
 ## Known Limitations
 
 - **No Apple Developer ID yet.** The first launch needs **Open Anyway**, and Claude Desktop users approve Claude Safe Storage again after each update.
@@ -226,7 +201,7 @@ Yes. Quotapus has its own bundle ID, settings, logs, and local API port, so the 
 
 ## Similar Projects
 
-- **[OpenUsage](https://github.com/robinebers/openusage)**, the app Quotapus is built on. It syncs history between your Macs over iCloud and has a command-line helper.
+- **[OpenUsage](https://github.com/robinebers/openusage)**, the project Quotapus is built on.
 - **[CodexBar](https://github.com/steipete/CodexBar)** tracks over a hundred providers, with a Linux desktop app and a CLI.
 
 Quotapus focuses on one setup: the Linux servers and WSL boxes you SSH into, counted in the same panel as your Mac.

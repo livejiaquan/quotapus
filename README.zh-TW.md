@@ -136,22 +136,6 @@ flowchart LR
 - **[Proxy 支援](docs/proxy.md)**與**[額外的本機紀錄資料夾](docs/local-log-roots.md)。**
 - **原生設定。** 開機自動啟動、全域快捷鍵、圖示樣式、主題、密度，見 [Settings](docs/settings.md)。
 
-<details>
-<summary><b>Quotapus 和 OpenUsage 有什麼不同</b></summary>
-
-<br>
-
-Quotapus 從 [OpenUsage](https://github.com/robinebers/openusage) 的程式碼出發，之後在設計和功能上走了自己的路。
-
-- **是另一個 App，可以並存。** Quotapus 有自己的 Bundle ID（`com.livejiaquan.quotapus`）、設定、紀錄檔（`~/Library/Logs/Quotapus`）、設定資料夾（`~/.quotapus`、`~/.config/quotapus`）和本機 API 連接埠（`6741`），可以和官方版裝在一起，互不干擾。
-- **Remote Devices 和即時卡片**是 Quotapus 新增的功能。
-- **沒有數據追蹤。** Quotapus 沒有任何分析或當機回報的程式碼，不會傳送任何使用統計。
-- **沒有 iCloud 同步、命令列工具和分享圖片。** 其他機器改用 SSH 的 Remote Devices；其餘功能為了讓 App 更輕巧而移除。
-- **價格資料不經過 OpenUsage。** 模型價格來自 LiteLLM、models.dev（大約每小時更新一次）和 App 內建的價目表。
-- **更新來自這個 repo**，不是 OpenUsage 的更新來源。
-
-</details>
-
 ## 常見問題
 
 <details>
@@ -208,15 +192,6 @@ Quotapus 用的是自己的簽署憑證，不是 Apple Developer ID，所以 Gat
 
 </details>
 
-<details>
-<summary><b>可以和 OpenUsage 同時安裝嗎？</b></summary>
-
-<br>
-
-可以。Quotapus 有自己的 Bundle ID、設定、紀錄檔和本機 API 連接埠，兩者互不干擾。
-
-</details>
-
 ## 已知限制
 
 - **還沒有 Apple Developer ID。** 第一次啟動需要按 **強制打開**，Claude Desktop 使用者每次更新後要再允許一次 Claude Safe Storage。
@@ -226,7 +201,7 @@ Quotapus 用的是自己的簽署憑證，不是 Apple Developer ID，所以 Gat
 
 ## 同類專案
 
-- **[OpenUsage](https://github.com/robinebers/openusage)**：Quotapus 的基礎。它用 iCloud 同步多台 Mac 的歷史，也有命令列工具。
+- **[OpenUsage](https://github.com/robinebers/openusage)**：Quotapus 的基礎專案。
 - **[CodexBar](https://github.com/steipete/CodexBar)**：追蹤一百多家服務，另有 Linux 桌面版和命令列工具。
 
 Quotapus 的重點是：把你 SSH 連進去的 Linux 伺服器和 WSL，跟你的 Mac 算在同一個面板裡。

@@ -72,6 +72,9 @@ struct LiveCardFigure: View {
     let unit: String
     var collapsed: Bool
     var dimmed = false
+    /// A quiet period mark after the unit ("· 30d"). It lives here, on the number's baseline, rather than
+    /// as a sibling in the header row, which would center it vertically and float it above the unit.
+    var tag: String?
 
     @AppStorage(DensitySetting.key) private var density = DensitySetting.regular
 
@@ -94,6 +97,13 @@ struct LiveCardFigure: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            if let tag {
+                Text(tag)
+                    .font(.system(size: density.supportingPointSize))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
         }
         .layoutPriority(1)
     }

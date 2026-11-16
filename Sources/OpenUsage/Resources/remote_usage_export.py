@@ -8,6 +8,7 @@ import datetime as dt
 import getpass
 import json
 import math
+import ntpath
 import os
 import pathlib
 import re
@@ -285,6 +286,24 @@ def roots(provider):
     return [config if config.name == "projects" else config / "projects" for config in configs]
 
 
+def long_path(path, windows=os.name == "nt"):
+    """Windows stops opening files past 260 characters unless the path is written `\\\\?\\C:\\...`.
+
+    Claude Desktop's scratch workspaces produce project folders that long. Without this, `is_file()`
+    reports False for them and the sessions are skipped without any error, so the device reads as empty.
+    """
+    text = str(path)
+    if not windows or text.startswith("\\\\?\\"):
+        return path
+    # The prefix turns Windows' path cleanup off, so make the path absolute and tidy first.
+    text = ntpath.abspath(text)
+    if len(text) < 240:
+        return path
+    if text.startswith("\\\\"):
+        return pathlib.Path("\\\\?\\UNC\\" + text[2:])
+    return pathlib.Path("\\\\?\\" + text)
+
+
 def discover(provider):
     seen = set()
     result = []
@@ -295,10 +314,11 @@ def discover(provider):
             relative_seen = set()
             directories = [folder for folder in (home / "sessions", home / "archived_sessions") if folder.is_dir()] or [home]
             for root in directories:
-                for path in sorted(root.rglob("*.jsonl")):
+                for found in sorted(root.rglob("*.jsonl")):
+                    path = long_path(found)
                     if not path.is_file():
                         continue
-                    relative = str(path.relative_to(root))
+                    relative = str(found.relative_to(root))
                     resolved = str(path.resolve())
                     if relative not in relative_seen and resolved not in seen:
                         relative_seen.add(relative)
@@ -308,7 +328,8 @@ def discover(provider):
         for root in roots(provider):
             if not root.is_dir():
                 continue
-            for path in sorted(root.rglob("*.jsonl")):
+            for found in sorted(root.rglob("*.jsonl")):
+                path = long_path(found)
                 if not path.is_file():
                     continue
                 resolved = str(path.resolve())
@@ -371,9 +392,10 @@ def main():
 
 
 def has_logs(provider):
+    # The same file test discover() applies, so the connection check can't promise logs the import skips.
     for root in roots(provider):
         try:
-            if root.is_dir() and next(root.rglob("*.jsonl"), None) is not None:
+            if root.is_dir() and any(long_path(path).is_file() for path in root.rglob("*.jsonl")):
                 return True
         except OSError:
             continue

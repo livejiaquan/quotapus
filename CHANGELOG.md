@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.0.1
+
+### Bug Fixes
+- Models card: the "· 30d" and "· yday" mark now sits on the same line as the model name instead of floating above it
+- Remote Devices on Windows: Claude sessions inside very long Claude Desktop folders (past Windows' 260-character path limit) are no longer skipped, so those devices no longer show "no Claude or Codex logs found"
+- Remote Devices: the connection check now uses the same file test as the import, so it no longer reports logs the import can't read
+
+### Chores
+- Update Sparkle (the updater) to 2.10.1 ([#3](https://github.com/livejiaquan/quotapus/pull/3)) by @dependabot
+- Docs: README and Windows notes
+
+---
+
+### 中文說明
+
+**錯誤修正**
+- Models 卡片：「· 30d」「· yday」標記現在和模型名稱在同一條基線上，不再飄在上面
+- Windows 遠端裝置：Claude Desktop 資料夾名稱很長（路徑超過 Windows 的 260 字元上限）的對話，不再被略過；這類裝置不會再顯示「no Claude or Codex logs found」
+- 遠端裝置：新增裝置時的連線檢查改用和匯入相同的檔案判斷，不會再回報匯入讀不到的 log
+
+**其他**
+- 更新程式 Sparkle 升到 2.10.1（#3）
+- 文件：README 與 Windows 說明
+
+---
+
+**Full Changelog**: [v1.0.0...v1.0.1](https://github.com/livejiaquan/quotapus/compare/v1.0.0...v1.0.1)
+
+---
+
 ## v1.0.0
 
 The first stable Quotapus release: an unofficial fork of OpenUsage (synced with upstream 0.7.16-beta.1) that also counts the AI coding usage on your other computers.

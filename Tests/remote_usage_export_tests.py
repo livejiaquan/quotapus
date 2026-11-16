@@ -198,6 +198,23 @@ class RemoteUsageExportTests(unittest.TestCase):
             rollout.write_text("{}\n")
             self.assertEqual(probe()[3], "codex=1 claude=0")
 
+    def test_windows_paths_past_the_260_character_limit_get_the_extended_prefix(self):
+        # Claude Desktop's scratch workspaces make project folders this long; without the prefix
+        # Windows can't open the file and the device silently reads as empty.
+        short = pathlib.PureWindowsPath("C:/Users/me/.claude/projects/app/session.jsonl")
+        long = pathlib.PureWindowsPath("C:/Users/me/.claude/projects/" + "x" * 230 + "/session.jsonl")
+        unc = pathlib.PureWindowsPath("//server/share/" + "x" * 240 + "/session.jsonl")
+        self.assertEqual(exporter.long_path(short, windows=True), short)
+        self.assertEqual(str(exporter.long_path(long, windows=True)), "\\\\?\\" + str(long))
+        self.assertEqual(str(exporter.long_path(unc, windows=True)), "\\\\?\\UNC\\" + str(unc)[2:])
+        already = pathlib.PureWindowsPath("\\\\?\\C:\\" + "x" * 250)
+        self.assertEqual(exporter.long_path(already, windows=True), already)
+        # The prefix turns Windows' own path cleanup off, so '..' segments are resolved first.
+        dotted = pathlib.PureWindowsPath("C:/Users/me/other/../.claude/projects/" + "x" * 230 + "/session.jsonl")
+        self.assertEqual(str(exporter.long_path(dotted, windows=True)), "\\\\?\\" + str(long))
+        # Other systems never see the prefix.
+        self.assertEqual(exporter.long_path(long, windows=False), long)
+
     @staticmethod
     def run_export():
         output = io.StringIO()

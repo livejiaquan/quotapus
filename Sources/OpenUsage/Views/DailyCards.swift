@@ -292,15 +292,9 @@ struct ModelsCard: View {
         LiveCardLeadingSlot()
         LiveCardFigure(value: summary.models.first.map { "\(Int(($0.share * 100).rounded()))%" } ?? "—",
                        unit: summary.models.first.map { ModelShortName.make($0.model) } ?? "no models",
-                       collapsed: collapsed)
-        // Today needs no mark; another period gets a quiet tag, since "44% Opus 5.5" can't say it.
-        if period != .today {
-            Text(period == .yesterday ? "· yday" : "· 30d")
-                .font(.system(size: density.supportingPointSize))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .fixedSize()
-        }
+                       collapsed: collapsed,
+                       // Today needs no mark; another period gets a quiet tag, since "44% Opus 5.5" can't say it.
+                       tag: period == .today ? nil : (period == .yesterday ? "· yday" : "· 30d"))
         Spacer(minLength: 6)
         if collapsed, !summary.models.isEmpty {
             shareBar

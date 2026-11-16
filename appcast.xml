@@ -3,6 +3,14 @@
     <channel>
         <title>Quotapus</title>
         <item>
+            <title>1.0.1</title>
+            <pubDate>Mon, 16 Nov 2026 07:04:52 +0000</pubDate>
+            <sparkle:version>1009</sparkle:version>
+            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/livejiaquan/quotapus/releases/download/v1.0.1/Quotapus-1.0.1.dmg" length="10383838" type="application/octet-stream" sparkle:edSignature="X+LvlL0hsVKOUYU9stvy50m2qWj3LC+OlAdFpVXUW0z2FRZhUR5chWU6ntpV/m9zqVm/CXOXZdW+QLl9TeEEAg=="/>
+        </item>
+        <item>
             <title>1.0.0</title>
             <pubDate>Tue, 20 Oct 2026 08:34:49 +0000</pubDate>
             <sparkle:version>1002</sparkle:version>
